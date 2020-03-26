@@ -8,7 +8,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.PriorityQueue;
 
-public class SortMerge {
+public class SortMerge extends Operator{
     private boolean reverse;
     private int numBuffer; //number of buffers available
     private int batchSize; //number of tuples that can be stored in the batch
@@ -17,8 +17,10 @@ public class SortMerge {
     private Operator base;
     private final ArrayList<Integer> compareIndex; //Index of columns to sort by
     private ArrayList<String> tempFiles;
+    private TupleReader curr_reader;
 
     public SortMerge(Operator base, ArrayList<Integer> compareIndex, boolean reverse, int numBuffer) {
+        super(OpType.SORT);
         this.base = base;
         this.numBuffer = numBuffer;
         this.compareIndex = compareIndex;
@@ -146,6 +148,39 @@ public class SortMerge {
         this.pass++;
         deleteTempFiles();
         this.tempFiles = next_sorted_temp_runs;
+    }
+
+    public boolean open() {
+        generateSortedRuns();
+        while (tempFiles.size() != 1) {
+            mergeRuns();
+        }
+        curr_reader = new TupleReader(tempFiles.get(0), this.batchSize);
+        if (!curr_reader.open()) {
+            System.out.printf("%s: Unable to open final sorted run", tempFiles.get(0));
+            return false;
+        }
+        return true;
+    }
+
+    public Batch next() {
+        Batch outBatch = new Batch(this.batchSize);
+        while (!outBatch.isFull()) {
+            Tuple tuple = this.curr_reader.next();
+            if (tuple == null) {
+                return outBatch;
+            }
+            outBatch.add(tuple);
+        }
+        return outBatch;
+    }
+
+    public boolean close() {
+        this.curr_reader.close();
+        File f = new File(this.tempFiles.get(0));
+        f.delete();
+        tempFiles.clear();
+        return true;
     }
 
     private class TupleIndexPair {
