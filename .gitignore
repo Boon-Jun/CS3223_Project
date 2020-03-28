@@ -7,3 +7,14 @@ COMPONENT/*.sql
 COMPONENT/*.out
 COMPONENT/*.idea
 COMPONENT/classes
+
+COMPONENT\*.md
+COMPONENT\*.det
+COMPONENT\*.stat
+COMPONENT\*.tbl
+COMPONENT\*.txt
+COMPONENT\*.sql
+COMPONENT\*.out
+COMPONENT\*.idea
+COMPONENT\classes
+
