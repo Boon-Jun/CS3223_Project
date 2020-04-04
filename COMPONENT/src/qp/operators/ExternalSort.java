@@ -8,7 +8,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.PriorityQueue;
 
-public class SortMerge extends Operator{
+public class ExternalSort extends Operator{
     private boolean reverse;
     private int numBuffer; //number of buffers available
     private int batchSize; //number of tuples that can be stored in the batch
@@ -19,7 +19,7 @@ public class SortMerge extends Operator{
     private ArrayList<String> tempFiles;
     private TupleReader curr_reader;
 
-    public SortMerge(Operator base, ArrayList<Integer> compareIndex, boolean reverse, int numBuffer) {
+    public ExternalSort(Operator base, ArrayList<Integer> compareIndex, boolean reverse, int numBuffer) {
         super(OpType.SORT);
         this.base = base;
         this.numBuffer = numBuffer;
