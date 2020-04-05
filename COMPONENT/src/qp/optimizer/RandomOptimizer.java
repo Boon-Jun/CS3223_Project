@@ -78,6 +78,12 @@ public class RandomOptimizer {
             Operator base = makeExecPlan(((Project) node).getBase());
             ((Project) node).setBase(base);
             return node;
+        } else if (node.getOpType() == OpType.DISTINCT){
+            Operator base = makeExecPlan(((Distinct) node).getBase());
+            int numbuff = BufferManager.getBuffersPerJoin();
+            ((Distinct)node).setNumBuff(numbuff);
+            ((Distinct)node).setBase(base);
+            return node;
         } else {
             return node;
         }

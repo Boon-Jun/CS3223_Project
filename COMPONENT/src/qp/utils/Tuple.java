@@ -69,6 +69,17 @@ public class Tuple implements Serializable {
     }
 
     /**
+     * Compare two tuples in the same table on for all attributes
+     **/
+    public static int compareTuples(Tuple left, Tuple right, ArrayList<Integer> compareIndex) {
+        int result = 0;
+        for (int i = 0; i < compareIndex.size(); i++) {
+            result += compareTuples(left, right, i, i);
+        }
+        return result;
+    }
+
+    /**
      * Compare two tuples in the same table on given attribute
      **/
     public static int compareTuples(Tuple left, Tuple right, int index) {
