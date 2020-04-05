@@ -80,7 +80,7 @@ public class RandomOptimizer {
             return node;
         } else if (node.getOpType() == OpType.DISTINCT){
             Operator base = makeExecPlan(((Distinct) node).getBase());
-            ((Distinct)node).setNumBuff(1000);   // Distinct has to materialize all tuples first
+            ((Distinct)node).setNumBuff(BufferManager.getBuffers());   // Distinct has to materialize all tuples first
             ((Distinct)node).setBase(base);
             return node;
         } else {
