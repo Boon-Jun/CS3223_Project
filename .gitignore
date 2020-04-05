@@ -7,3 +7,5 @@ COMPONENT/*.sql
 COMPONENT/*.out
 COMPONENT/*.idea
 COMPONENT/classes
+out/production/
+COMPONENT/COMPONENT.iml
