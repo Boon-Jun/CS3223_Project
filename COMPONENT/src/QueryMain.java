@@ -116,7 +116,7 @@ public class QueryMain {
         Operator root = null;
 
         RandomOptimizer optimizer = new RandomOptimizer(sqlquery);
-        Operator planroot = optimizer.getIIPlan();
+        Operator planroot = optimizer.getIIPlan(false);
 
         if (planroot == null) {
             System.out.println("DPOptimizer: query plan is null");

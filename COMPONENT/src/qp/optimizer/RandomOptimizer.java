@@ -216,7 +216,7 @@ public class RandomOptimizer {
     /**
      * Implementation of Iterative Improvement Algorithm for Randomized optimization of Query Plan
      **/
-    public Operator getIIPlan() {
+    public Operator getIIPlan(boolean is_2PO) {
         /** get an initial plan for the given sql query **/
         RandomInitialPlan rip = new RandomInitialPlan(sqlquery);
         numJoin = rip.getNumJoins();
@@ -225,7 +225,9 @@ public class RandomOptimizer {
 
         /** NUMITER is number of times random restart **/
         int NUMITER;
-        if (numJoin != 0) {
+        if (is_2PO) {
+             NUMITER = 10; //10 local optimizations as defined in paper for II phase of 2PO
+        } else if (numJoin != 0) {
             NUMITER = 2 * numJoin;
         } else {
             NUMITER = 1;
@@ -306,6 +308,11 @@ public class RandomOptimizer {
         Debug.PPrint(finalPlan);
         System.out.println("  " + MINCOST);
         return finalPlan;
+    }
+
+    public Operator get2POPlan() {
+        Operator IIplan = getIIPlan(true);
+        return getSAPlan(IIplan);
     }
 
     /**
