@@ -114,7 +114,7 @@ public class RandomOptimizer {
     /**
      * Implementation of Iterative Improvement Algorithm for Randomized optimization of Query Plan
      **/
-    public Operator getOptimizedPlan() {
+    public Operator getIIPlan() {
         /** get an initial plan for the given sql query **/
         RandomInitialPlan rip = new RandomInitialPlan(sqlquery);
         numJoin = rip.getNumJoins();
