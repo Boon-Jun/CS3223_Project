@@ -144,10 +144,7 @@ public class PlanCost {
                 joincost = leftpages * rightpages;
                 break;
             case JoinType.BLOCKNESTED:
-                int blocksize = 1;
-                if (node instanceof BlockNestedJoin) {
-                    blocksize = ((BlockNestedJoin) ((Join) node)).getBlocksize();
-                }
+                long blocksize = numbuff-2;
                 joincost = (long) Math.ceil(((double) leftpages) / blocksize) * rightpages;
                 break;
             default:
