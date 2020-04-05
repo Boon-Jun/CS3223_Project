@@ -74,7 +74,10 @@ public class Tuple implements Serializable {
     public static int compareTuples(Tuple left, Tuple right, ArrayList<Integer> compareIndex) {
         int result = 0;
         for (int i = 0; i < compareIndex.size(); i++) {
-            result += compareTuples(left, right, i, i);
+            result = compareTuples(left, right, compareIndex.get(i), compareIndex.get(i));
+            if (result != 0) {
+                return result;
+            }
         }
         return result;
     }
