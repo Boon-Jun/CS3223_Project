@@ -141,18 +141,18 @@ public class RandomOptimizer {
 
         while (temperature > 1 && unchangedCount < 4) {//while not frozen
             modifySchema(initPlan);
-            System.out.println("-----------initial Plan-------------");
+            System.out.println("-----------initial Plan SA-------------");
             Debug.PPrint(initPlan);
             System.out.println(initCost);
 
             long minNeighborCost = initCost;   //just initialization purpose;
             Operator minNeighbor = initPlan;  //just initialization purpose;
             for (int x = 0; x < 16 * numJoin; x++) {  //equilibrium is defined as 16 * number of Joins in query.
-                System.out.println("---------------while--------");
+                System.out.println("---------------while SA--------");
                 Operator initPlanCopy = (Operator) initPlan.clone();
                 minNeighbor = getNeighbor(initPlanCopy);
 
-                System.out.println("--------------------------neighbor---------------");
+                System.out.println("--------------------------neighbor SA---------------");
                 Debug.PPrint(minNeighbor);
                 pc = new PlanCost();
                 minNeighborCost = pc.getCost(minNeighbor);
@@ -165,7 +165,7 @@ public class RandomOptimizer {
                 for (int i = 1; i < 2 * numJoin; ++i) {//random state in neighbour
                     initPlanCopy = (Operator) initPlan.clone();
                     Operator neighbor = getNeighbor(initPlanCopy);
-                    System.out.println("------------------neighbor--------------");
+                    System.out.println("------------------neighbor SA--------------");
                     Debug.PPrint(neighbor);
                     pc = new PlanCost();
                     long neighborCost = 0;
@@ -194,9 +194,9 @@ public class RandomOptimizer {
                     minNeighborCost = initCost;
                 }
             }
-                System.out.println("------------------local minimum--------------");
-                Debug.PPrint(minNeighbor);
-                System.out.println(" " + minNeighborCost);
+            System.out.println("------------------neighbour at equilibrium SA--------------");
+            Debug.PPrint(minNeighbor);
+            System.out.println(" " + minNeighborCost);
             if (minNeighborCost < finalCost) {
                 finalCost = minNeighborCost;
                 finalPlan = minNeighbor;
@@ -207,7 +207,7 @@ public class RandomOptimizer {
             temperature = 0.95 * temperature;
         }
         System.out.println("\n\n\n");
-        System.out.println("---------------------------Final Plan----------------");
+        System.out.println("---------------------------Final Plan SA----------------");
         Debug.PPrint(finalPlan);
         System.out.println("  " + finalCost);
         return finalPlan;
@@ -240,7 +240,7 @@ public class RandomOptimizer {
         for (int j = 0; j < NUMITER; ++j) {
             Operator initPlan = rip.prepareInitialPlan();
             modifySchema(initPlan);
-            System.out.println("-----------initial Plan-------------");
+            System.out.println("-----------initial II Plan-------------");
             Debug.PPrint(initPlan);
             PlanCost pc = new PlanCost();
             long initCost = pc.getCost(initPlan);
@@ -251,11 +251,11 @@ public class RandomOptimizer {
             Operator minNeighbor = initPlan;  //just initialization purpose;
             if (numJoin != 0) {
                 while (flag) {  // flag = false when local minimum is reached
-                    System.out.println("---------------while--------");
+                    System.out.println("---------------while II--------");
                     Operator initPlanCopy = (Operator) initPlan.clone();
                     minNeighbor = getNeighbor(initPlanCopy);
 
-                    System.out.println("--------------------------neighbor---------------");
+                    System.out.println("--------------------------neighbor II---------------");
                     Debug.PPrint(minNeighbor);
                     pc = new PlanCost();
                     minNeighborCost = pc.getCost(minNeighbor);
@@ -268,7 +268,7 @@ public class RandomOptimizer {
                     for (int i = 1; i < 2 * numJoin; ++i) {
                         initPlanCopy = (Operator) initPlan.clone();
                         Operator neighbor = getNeighbor(initPlanCopy);
-                        System.out.println("------------------neighbor--------------");
+                        System.out.println("------------------neighbor II--------------");
                         Debug.PPrint(neighbor);
                         pc = new PlanCost();
                         long neighborCost = 0;
@@ -294,7 +294,7 @@ public class RandomOptimizer {
                         flag = false;  // local minimum reached
                     }
                 }
-                System.out.println("------------------local minimum--------------");
+                System.out.println("------------------local minimum II--------------");
                 Debug.PPrint(minNeighbor);
                 System.out.println(" " + minNeighborCost);
             }
@@ -304,7 +304,7 @@ public class RandomOptimizer {
             }
         }
         System.out.println("\n\n\n");
-        System.out.println("---------------------------Final Plan----------------");
+        System.out.println("---------------------------Final Plan II----------------");
         Debug.PPrint(finalPlan);
         System.out.println("  " + MINCOST);
         return finalPlan;
