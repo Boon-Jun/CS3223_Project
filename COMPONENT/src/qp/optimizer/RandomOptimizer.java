@@ -112,6 +112,108 @@ public class RandomOptimizer {
     }
 
     /**
+     * Implementation of Simulated Annealing Algorithm for Randomized optimization of Query Plan
+     **/
+    public Operator getSAPlan(Operator plan) {
+        /** get an initial plan for the given sql query **/
+        Operator initPlan;
+        long initCost;
+        double temperature;
+        PlanCost pc;
+
+        if (plan == null) {
+            RandomInitialPlan rip = new RandomInitialPlan(sqlquery);
+            initPlan = rip.prepareInitialPlan();
+        } else {
+            initPlan = plan;//Assumed to be minS of II.
+        }
+        pc = new PlanCost();
+        initCost = pc.getCost(initPlan);
+        int unchangedCount = 0;
+
+        if (plan == null) {
+            temperature = 2 * initCost;//Temperature for implementation of SA
+        } else {
+            temperature = 0.1 * initCost;//Temperature for implementation of 2PO
+        }
+        Operator finalPlan = initPlan;
+        long finalCost = initCost;
+
+        while (temperature > 1 && unchangedCount < 4) {//while not frozen
+            modifySchema(initPlan);
+            System.out.println("-----------initial Plan-------------");
+            Debug.PPrint(initPlan);
+            System.out.println(initCost);
+
+            long minNeighborCost = initCost;   //just initialization purpose;
+            Operator minNeighbor = initPlan;  //just initialization purpose;
+            for (int x = 0; x < 16 * numJoin; x++) {  //equilibrium is defined as 16 * number of Joins in query.
+                System.out.println("---------------while--------");
+                Operator initPlanCopy = (Operator) initPlan.clone();
+                minNeighbor = getNeighbor(initPlanCopy);
+
+                System.out.println("--------------------------neighbor---------------");
+                Debug.PPrint(minNeighbor);
+                pc = new PlanCost();
+                minNeighborCost = pc.getCost(minNeighbor);
+                System.out.println("  " + minNeighborCost);
+
+                /** In this loop we consider from the
+                 ** possible neighbors (randomly selected)
+                 ** and take the minimum among for next step
+                 **/
+                for (int i = 1; i < 2 * numJoin; ++i) {//random state in neighbour
+                    initPlanCopy = (Operator) initPlan.clone();
+                    Operator neighbor = getNeighbor(initPlanCopy);
+                    System.out.println("------------------neighbor--------------");
+                    Debug.PPrint(neighbor);
+                    pc = new PlanCost();
+                    long neighborCost = 0;
+                    try {
+                        neighborCost = pc.getCost(neighbor);
+                    } catch (Exception e) {
+                        System.out.println("fatal error.");
+                        System.exit(0);
+                    }
+                    System.out.println(neighborCost);
+
+                    if (neighborCost <= minNeighborCost) {
+                        minNeighbor = neighbor;
+                        minNeighborCost = neighborCost;
+                    }
+                }
+                if (minNeighborCost <= initCost) {
+                    initPlan = minNeighbor;
+                    initCost = minNeighborCost;
+                } else if (Math.random() < Math.exp((initCost - minNeighborCost)/temperature)) {
+                    //minNeighborCost > initCost &&
+                    initPlan = minNeighbor;
+                    initCost = minNeighborCost;
+                } else {
+                    minNeighbor = initPlan;
+                    minNeighborCost = initCost;
+                }
+            }
+                System.out.println("------------------local minimum--------------");
+                Debug.PPrint(minNeighbor);
+                System.out.println(" " + minNeighborCost);
+            if (minNeighborCost < finalCost) {
+                finalCost = minNeighborCost;
+                finalPlan = minNeighbor;
+                unchangedCount = 0;
+            } else {
+                unchangedCount++;
+            }
+            temperature = 0.95 * temperature;
+        }
+        System.out.println("\n\n\n");
+        System.out.println("---------------------------Final Plan----------------");
+        Debug.PPrint(finalPlan);
+        System.out.println("  " + finalCost);
+        return finalPlan;
+    }
+
+    /**
      * Implementation of Iterative Improvement Algorithm for Randomized optimization of Query Plan
      **/
     public Operator getIIPlan() {
