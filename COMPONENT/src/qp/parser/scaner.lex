@@ -158,16 +158,7 @@ STRING_LITERAL=\"{CHAR}*\"
   return new Symbol(sym.DOT,yyline,yychar,new TokenValue(yytext()));
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+<YYINITIAL,NEGATE> DESC {
+  yybegin(YYINITIAL);
+  return new Symbol(sym.DESC,yyline,yychar,new TokenValue(yytext()));
+}
