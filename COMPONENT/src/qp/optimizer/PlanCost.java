@@ -147,6 +147,9 @@ public class PlanCost {
                 long blocksize = numbuff-2;
                 joincost = (long) Math.ceil(((double) leftpages) / blocksize) * rightpages;
                 break;
+            case JoinType.SORTMERGE:
+                joincost = calculateExternalSortCost(leftpages, numbuff) + calculateExternalSortCost(rightpages, numbuff) + leftpages + rightpages;
+                break;
             default:
                 System.out.println("join type is not supported");
                 return 0;
@@ -271,6 +274,9 @@ public class PlanCost {
         return numtuples;
     }
 
+    protected long calculateExternalSortCost(long pages, long numBuff) {
+        return 2 * pages * (1 + (long) Math.ceil(Math.log(Math.ceil((double) pages / numBuff)) / Math.log(numBuff - 1)));
+    }
 }
 
 
