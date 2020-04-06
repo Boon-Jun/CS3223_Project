@@ -75,7 +75,7 @@
      action code blocks.
    Fixed input lexer to allow whitespace in character classes, closing
      active bug #9.  Whitespace in quotes had been previously fixed.
-   Made Yylex.YYEOF and %yyeof work like the manual says they should.
+   Made Scanner.YYEOF and %yyeof work like the manual says they should.
 
   Version 1.2.3, 6/26/97, [Raimondas Lencevicius]
    Fixed the yy_nxt[][] assignment that has generated huge code

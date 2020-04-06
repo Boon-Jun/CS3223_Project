@@ -75,7 +75,6 @@ finalquery ::= sqlquery:s
             RESULT = s;
         :}
         |  sqlquery:s ORDERBY attlist:a DESC
-
         {:
             s.setOrderByList(a);
             s.setIsDesc(true);
