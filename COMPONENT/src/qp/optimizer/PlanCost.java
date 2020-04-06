@@ -76,10 +76,25 @@ public class PlanCost {
             return getStatistics((Project) node);
         } else if (node.getOpType() == OpType.SCAN) {
             return getStatistics((Scan) node);
+        } else if (node.getOpType() == OpType.DISTINCT){
+            return getStatistics((Distinct) node);
         }
         System.out.println("operator is not supported");
         isFeasible = false;
         return 0;
+    }
+    
+    /**
+     * Distinct involves sorting the projected tuples
+     * * using SortMerge
+     **/
+    protected long getStatistics(Distinct node) {
+        long numbuff = BufferManager.numBuffer;
+        long tuples = calculateCost(node.getBase());
+        long tupleSize = node.getSchema().getTupleSize();
+        long capacity = Math.max(1, Batch.getPageSize() / tupleSize);
+        long pages = (long) Math.ceil(((double) tuples) / (double) capacity);
+        return calculateExternalSortCost(pages,numbuff) + calculateCost(node.getBase());
     }
 
     /**
