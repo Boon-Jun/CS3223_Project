@@ -94,7 +94,7 @@ public class PlanCost {
         long tupleSize = node.getSchema().getTupleSize();
         long capacity = Math.max(1, Batch.getPageSize() / tupleSize);
         long pages = (long) Math.ceil(((double) tuples) / (double) capacity);
-        return calculateExternalSortCost(pages,numbuff);
+        return calculateExternalSortCost(pages,numbuff) + calculateCost(node.getBase());
     }
 
     /**
