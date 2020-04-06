@@ -30,6 +30,9 @@ public class QueryMain {
         SQLQuery sqlquery = getSQLQuery(args[0]);
         configureBufferManager(sqlquery.getNumJoin(), args, in);
 
+        if (!sqlquery.getOrderByList().isEmpty()){
+            
+        }
         Operator root = getQueryPlan(sqlquery);
         printFinalPlan(root, args, in);
         executeQuery(root, args[1]);
