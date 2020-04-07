@@ -44,7 +44,7 @@ public class ExternalSort extends Operator{
     private void writeTuplesToOutput(ArrayList<Tuple> tuples, String fileName) {
         TupleWriter writer = new TupleWriter(fileName, this.batchSize);
         if (!writer.open()) {
-            System.out.printf("%s:writing SM file error\n", fileName);
+            System.out.printf("%s:writing ES file error\n", fileName);
             System.exit(1);
         }
         for (int x = 0; x < tuples.size(); x++) {
@@ -81,7 +81,7 @@ public class ExternalSort extends Operator{
             }
             if (!inMemoryTuples.isEmpty()) {
                 Collections.sort(inMemoryTuples, new TupleComparator(this.compareIndex, this.compareIndex, this.reverse));
-                String output_file = "SMtempRun-" + this.id + "_" + this.pass + "-" + runCount;
+                String output_file = "EStempRun-" + this.id + "_" + this.pass + "-" + runCount;
                 writeTuplesToOutput(inMemoryTuples, output_file);
                 tempFiles.add(output_file);
                 runCount++;
@@ -149,7 +149,7 @@ public class ExternalSort extends Operator{
                 x++;
             } while (x < this.tempFiles.size() && (this.batchSize == 1 || x % (this.batchSize - 1) != 0));
 
-            String output_file = "SMtempRun-" + this.id + "-" + this.pass + "-" + run_count;
+            String output_file = "EStempRun-" + this.id + "-" + this.pass + "-" + run_count;
             merge(output_file);
             next_sorted_temp_runs.add(output_file);
             run_count++;
