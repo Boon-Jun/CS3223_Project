@@ -43,7 +43,7 @@ public class SortMergeJoin extends Join{
         Tuple tuple = leftBatch.get(lcurs);
         lcurs++;
 
-        if (lcurs > leftBatch.size()) {
+        if (lcurs >= leftBatch.size()) {
             lcurs = 0;
         }
         return tuple;
@@ -59,7 +59,7 @@ public class SortMergeJoin extends Join{
         Tuple tuple = rightBatch.get(rcurs);
         rcurs++;
 
-        if (rcurs > rightBatch.size()) {
+        if (rcurs >= rightBatch.size()) {
             rcurs = 0;
         }
         return tuple;
