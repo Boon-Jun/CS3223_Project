@@ -2,6 +2,7 @@ package qp.operators;
 
 import qp.utils.*;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
@@ -25,6 +26,9 @@ public class SortMergeJoin extends Join{
 
     Tuple currLeft;//pointer to sorted left operator
     Tuple currRight;//pointer to tuple to sorted right operator
+
+    String rfname;
+    String lfname;
 
     public SortMergeJoin(Join jn) {
         super(jn.getLeft(), jn.getRight(), jn.getConditionList(), jn.getOpType());
@@ -79,7 +83,7 @@ public class SortMergeJoin extends Join{
         }
         Batch page;
         ExternalSort sortedRight = new ExternalSort("right", right, rightindex, false, numBuff);
-        String rfname = "SMJtemp_right";
+        rfname = "SMJtemp_right";
         if (!sortedRight.open()) {
             System.out.printf("Unable to open sorted right");
             return false;
@@ -95,7 +99,7 @@ public class SortMergeJoin extends Join{
             System.out.println("SortMergeJoin: Error writing to temporary file");
             return false;
         }
-        if (!right.close())
+        if (!sortedRight.close())
             return false;
 
         sortedLeft = new ExternalSort("left", left, leftindex, false, numBuff);
@@ -112,7 +116,7 @@ public class SortMergeJoin extends Join{
         }
         if (numBuff == 3) {
             //If there are only 3 buffers available, materialize the leftTable
-            String lfname = "SMJtemp_left";
+            lfname = "SMJtemp_left";
             try {
                 ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(lfname));
                 while ((page = sortedLeft.next()) != null) {
@@ -123,7 +127,7 @@ public class SortMergeJoin extends Join{
                 System.out.println("SortMergeJoin: Error writing to temporary file");
                 return false;
             }
-            if (!left.close())
+            if (!sortedLeft.close())
                 return false;
             leftReader = new TupleReader(rfname, this.batchsize);
             if (!leftReader.open()) {
@@ -204,6 +208,10 @@ public class SortMergeJoin extends Join{
      * Close the operator
      */
     public boolean close() {
+        File f = new File(rfname);
+        f.delete();
+        f = new File(lfname);
+        f.delete();
         if (leftReader != null) {
             leftReader.close();
         } else {
