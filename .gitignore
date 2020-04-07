@@ -1,9 +1,7 @@
-COMPONENT/*.md
-COMPONENT/*.det
-COMPONENT/*.stat
-COMPONENT/*.tbl
-COMPONENT/*.txt
-COMPONENT/*.sql
-COMPONENT/*.out
+*.md
+*.stat
+*.tbl
+*.txt
+*.out
 COMPONENT/*.idea
 COMPONENT/classes
