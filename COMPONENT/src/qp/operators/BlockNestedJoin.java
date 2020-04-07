@@ -39,10 +39,6 @@ public class BlockNestedJoin extends Join {
         numBuff = jn.getNumBuff();
     }
 
-    public int getBlocksize() {
-        return blocksize;
-    }
-
     /**
      * During open finds the index of the join attributes
      * * Materializes the right hand side into a file

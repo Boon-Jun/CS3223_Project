@@ -78,10 +78,25 @@ public class PlanCost {
             return getStatistics((Scan) node);
         } else if (node.getOpType() == OpType.SORT) {
             return getStatistics((OrderBy) node);
+        } else if (node.getOpType() == OpType.DISTINCT){
+            return getStatistics((Distinct) node);
         }
         System.out.println("operator is not supported");
         isFeasible = false;
         return 0;
+    }
+    
+    /**
+     * Distinct involves sorting the projected tuples
+     * * using SortMerge
+     **/
+    protected long getStatistics(Distinct node) {
+        long numbuff = BufferManager.numBuffer;
+        long tuples = calculateCost(node.getBase());
+        long tupleSize = node.getSchema().getTupleSize();
+        long capacity = Math.max(1, Batch.getPageSize() / tupleSize);
+        long pages = (long) Math.ceil(((double) tuples) / (double) capacity);
+        return calculateExternalSortCost(pages,numbuff) + calculateCost(node.getBase());
     }
 
     /**
@@ -160,15 +175,11 @@ public class PlanCost {
                 joincost = leftpages * rightpages;
                 break;
             case JoinType.BLOCKNESTED:
-                int blocksize = 1;
-                if (node instanceof BlockNestedJoin) {
-                    blocksize = ((BlockNestedJoin) ((Join) node)).getBlocksize();
-                }
+                long blocksize = numbuff-2;
                 joincost = (long) Math.ceil(((double) leftpages) / blocksize) * rightpages;
                 break;
             case JoinType.SORTMERGE:
-                joincost = calculateExternalSortCost(leftpages, numbuff) + calculateExternalSortCost(rightpages, numbuff)
-                            + leftpages + rightpages;
+                joincost = calculateExternalSortCost(leftpages, numbuff) + calculateExternalSortCost(rightpages, numbuff) + leftpages + rightpages;
                 break;
             default:
                 System.out.println("join type is not supported");
@@ -295,7 +306,7 @@ public class PlanCost {
     }
 
     protected long calculateExternalSortCost(long pages, long numBuff) {
-        return 2 * pages * (1 + (int) Math.ceil(Math.log(Math.ceil((double) pages / numBuff) / Math.log(numBuff - 1))));
+        return 2 * pages * (1 + (long) Math.ceil(Math.log(Math.ceil((double) pages / numBuff)) / Math.log(numBuff - 1)));
     }
 }
 

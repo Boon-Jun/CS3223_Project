@@ -14,12 +14,13 @@ public class ExternalSort extends Operator{
     private int batchSize; //number of tuples that can be stored in the batch
     private int pass = 0;
 
+    private String id;
     private Operator base;
     private final ArrayList<Integer> compareIndex; //Index of columns to sort by
     private ArrayList<String> tempFiles;
     private TupleReader curr_reader;
 
-    public ExternalSort(Operator base, ArrayList<Integer> compareIndex, boolean reverse, int numBuffer) {
+    public ExternalSort(String id, Operator base, ArrayList<Integer> compareIndex, boolean reverse, int numBuffer) {
         super(OpType.SORT);
         this.base = base;
         this.numBuffer = numBuffer;
@@ -28,6 +29,7 @@ public class ExternalSort extends Operator{
         int tupleSize = base.getSchema().getTupleSize();
         this.batchSize = Batch.getPageSize()/tupleSize;
         this.tempFiles = new ArrayList<>();
+        this.id = id;
     }
 
     private void deleteTempFiles() {
@@ -40,7 +42,7 @@ public class ExternalSort extends Operator{
     private void writeTuplesArrayOutput(ArrayList<Tuple> tuples, String fileName) {
         TupleWriter writer = new TupleWriter(fileName, this.batchSize);
         if (!writer.open()) {
-            System.out.printf("%s:writing SM file error", fileName);
+            System.out.printf("%s:writing SM file error\n", fileName);
             System.exit(1);
         }
         for (int x = 0; x < tuples.size(); x++) {
@@ -54,7 +56,7 @@ public class ExternalSort extends Operator{
         int runCount = 0;
 
         if (!this.base.open()) {
-            System.out.printf("Unable to open operator to generate Sorted Runs");
+            System.out.printf("Unable to open operator to generate Sorted Runs\n");
             System.exit(1);
         }
 
@@ -77,7 +79,7 @@ public class ExternalSort extends Operator{
             }
             if (!inMemoryTuples.isEmpty()) {
                 Collections.sort(inMemoryTuples, new TupleComparator(this.compareIndex, this.compareIndex, this.reverse));
-                String output_file = "SMtempRun-" + this.pass + "-" + runCount;
+                String output_file = "SMtempRun-" + this.id + "_" + this.pass + "-" + runCount;
                 writeTuplesArrayOutput(inMemoryTuples, output_file);
                 tempFiles.add(output_file);
                 runCount++;
@@ -101,7 +103,7 @@ public class ExternalSort extends Operator{
         PriorityQueue<TupleIndexPair> pq = new PriorityQueue<>(numBuffer - 1, custom_comparator);
 
         if (!writer.open()) {
-            System.out.printf("%s:writing merged file error", output_file);
+            System.out.printf("%s:writing merged file error\n", output_file);
             System.exit(1);
         }
 
@@ -135,13 +137,13 @@ public class ExternalSort extends Operator{
                 String tempFileName = this.tempFiles.get(x);
                 TupleReader reader = new TupleReader(tempFileName, this.batchSize);
                 if (!reader.open()) {
-                    System.out.printf("%s: Unable to open file to during merging", tempFileName);
+                    System.out.printf("%s: Unable to open file to during merging\n", tempFileName);
                     System.exit(1);
                 }
                 readers.add(reader);
                 x++;
             } while (x < this.tempFiles.size() && x % (this.batchSize - 1) != 0);
-            String output_file = "SMtempRun-" + pass + "-" + run_count;
+            String output_file = "SMtempRun-" + this.id + "-" + this.pass + "-" + run_count;
             merge(readers, output_file);
             next_sorted_temp_runs.add(output_file);
             run_count++;
@@ -158,7 +160,7 @@ public class ExternalSort extends Operator{
         }
         curr_reader = new TupleReader(tempFiles.get(0), this.batchSize);
         if (!curr_reader.open()) {
-            System.out.printf("%s: Unable to open final sorted run", tempFiles.get(0));
+            System.out.printf("%s: Unable to open final sorted run\n", tempFiles.get(0));
             return false;
         }
         return true;

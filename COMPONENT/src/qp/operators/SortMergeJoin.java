@@ -85,14 +85,15 @@ public class SortMergeJoin extends Join{
             rightindex.add(right.getSchema().indexOf(rightattr));
         }
 
-        sortedLeft = new ExternalSort(left, leftindex, false, numBuff/2);
+        sortedLeft = new ExternalSort("left", left, leftindex, false, numBuff);
+        sortedRight = new ExternalSort("right", right, rightindex, false, numBuff);
         if (!sortedLeft.open()) {
             System.out.printf("Unable to open sorted left");
             return false;
         }
-        sortedRight = new ExternalSort(right, rightindex, false, numBuff/2);
         if (!sortedRight.open()) {
             System.out.printf("Unable to open right sorted right");
+            sortedLeft.close();
             return false;
         }
 
@@ -103,7 +104,6 @@ public class SortMergeJoin extends Join{
         currRight = advanceRight();
 
         rightPartition = new ArrayList<>();
-        outbatch = new Batch(batchsize);
         return true;
     }
 
@@ -112,11 +112,12 @@ public class SortMergeJoin extends Join{
      * * And returns a page of output tuples
      **/
     public Batch next() {
+        outbatch = new Batch(batchsize);
         while (currLeft != null && (currRight != null || !rightPartition.isEmpty())) {
             if (!rightPartition.isEmpty()) {
                 while (Tuple.compareTuples(currLeft, rightPartition.get(0), leftindex, rightindex) == 0) {
                     while (rpcurs < rightPartition.size()) {
-                        outbatch.add(rightPartition.get(rpcurs));
+                        outbatch.add(currLeft.joinWith(rightPartition.get(rpcurs)));
                         rpcurs++;
                         if (outbatch.isFull())
                             return outbatch;
@@ -128,6 +129,9 @@ public class SortMergeJoin extends Join{
                     }
                 }
                 rightPartition.clear();
+                if (currRight == null) {
+                    return outbatch;
+                }
             }
 
             while (Tuple.compareTuples(currLeft, currRight, leftindex, rightindex) < 0) {

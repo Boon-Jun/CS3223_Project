@@ -7,40 +7,28 @@ import qp.utils.Tuple;
 
 import java.util.ArrayList;
 
-public class OrderBy extends Operator {
-
-    private Operator base;                 // Base table to project
-    private ArrayList<Attribute> attrset;  // Set of attributes to project
-    private ArrayList<Attribute> compareAttri;  // Set of attributes to orderBy
-    private int batchsize;                 // Number of tuples per outbatch
-    private int numBuff;
-
-
-    private boolean isDesc;           // Descending or ascending
+public class Distinct extends Operator {
+    Operator base;                 // Base table to project
+    ArrayList<Attribute> attrset;  // Set of attributes to project
+    int batchsize;                 // Number of tuples per outbatch
+    int numBuff;
 
     /**
-     * The following fields are required during execution
+     * The following fields are requied during execution
      * * of the Project Operator
      **/
-    private Batch inbatch;
-    private Batch outbatch;
-    private int curs;
-    private Tuple previousTuple;
-    private ArrayList<Integer> compareIndex;  //Index of attributes to be sorted by
+    Batch inbatch;
+    Batch outbatch;
+    int curs;
+    Tuple previousTuple;
+    ArrayList<Integer> compareIndex;
 
     ExternalSort sorted;
 
-
-    public OrderBy(Operator base, ArrayList<Attribute> attrset,  ArrayList<Attribute> compareAttri, boolean isDesc) {
-        super(OpType.SORT);
-        this.attrset = attrset;
-        this.isDesc = isDesc;
+    public Distinct(Operator base, ArrayList<Attribute> as, int type) {
+        super(type);
         this.base = base;
-        this.compareAttri = compareAttri;
-    }
-
-    public boolean getOrderType() {
-        return isDesc;
+        this.attrset = as;
     }
 
     public Operator getBase() {
@@ -61,14 +49,14 @@ public class OrderBy extends Operator {
         int tuplesize = schema.getTupleSize();
         batchsize = Batch.getPageSize() / tuplesize;
 
-
+        ArrayList<Attribute> attributes = base.getSchema().getAttList();
         compareIndex = new ArrayList<>();
 
-        for (int i = 0; i < compareAttri.size(); i++) {
-            Attribute attribute = compareAttri.get(i);
+        for (int i = 0; i < attributes.size(); i++) {
+            Attribute attribute = attributes.get(i);
             compareIndex.add(base.getSchema().indexOf(attribute));
         }
-        sorted = new ExternalSort("order", base, compareIndex, this.isDesc, this.numBuff);
+        sorted = new ExternalSort("distinct", base, compareIndex, false, this.numBuff);
         if (!sorted.open()) {
             System.out.printf("Unable to open sorted");
             return false;
@@ -88,8 +76,10 @@ public class OrderBy extends Operator {
         }
         while (!outbatch.isFull()) {
             if (curs < inbatch.size()) {
-                outbatch.add(inbatch.get(curs));
-                previousTuple = inbatch.get(curs);
+                if (previousTuple == null || Tuple.compareTuples(previousTuple, inbatch.get(curs), compareIndex) != 0) {
+                    outbatch.add(inbatch.get(curs));
+                    previousTuple = inbatch.get(curs);
+                }
                 curs++;
             } else {
                 inbatch = sorted.next();
@@ -113,15 +103,11 @@ public class OrderBy extends Operator {
     public Object clone() {
         Operator newbase = (Operator) base.clone();
         ArrayList<Attribute> newattr = new ArrayList<>();
-
-        boolean order = this.isDesc;
-
-
         for (int i = 0; i < attrset.size(); ++i)
             newattr.add((Attribute) attrset.get(i).clone());
-        OrderBy newOrderBy = new OrderBy(newbase, newattr, this.compareAttri, order);
+        Distinct newdistinct = new Distinct(newbase, newattr, optype);
         Schema newSchema = newbase.getSchema().subSchema(newattr);
-        newOrderBy.setSchema(newSchema);
-        return newOrderBy;
+        newdistinct.setSchema(newSchema);
+        return newdistinct;
     }
 }
