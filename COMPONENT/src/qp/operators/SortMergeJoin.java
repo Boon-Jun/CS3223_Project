@@ -1,30 +1,34 @@
 package qp.operators;
 
-import qp.utils.Attribute;
-import qp.utils.Batch;
-import qp.utils.Condition;
-import qp.utils.Tuple;
+import qp.utils.*;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 
 public class SortMergeJoin extends Join{
     int batchsize;                  // Number of tuples per out batch
     ArrayList<Integer> leftindex;   // Indices of the join attributes in left table
     ArrayList<Integer> rightindex;  // Indices of the join attributes in right table
-    ExternalSort sortedLeft, sortedRight;
+    ExternalSort sortedLeft; //External Sort Operator
+    TupleReader leftReader; //Reader for materialized left hand side
+    TupleReader rightReader; //Reader for materialized right hand side
 
     Batch outbatch;                 // Buffer page for output
 
-    Batch leftBatch;
-    Batch rightBatch;               // Buffer page for right input stream
+    Batch leftBatch;                // Buffer page for left output stream;
     int lcurs;                      // Cursor for left side buffer
-    int rcurs;                      // Cursor for right side buffer
 
     ArrayList<Tuple> rightPartition;//partition of equivalent values
     int rpcurs;                     // Cursor for right partition;
 
-    Tuple currLeft;
-    Tuple currRight;
+    Tuple currLeft;//pointer to sorted left operator
+    Tuple currRight;//pointer to tuple to sorted right operator
+
+    String rfname;
+    String lfname;
 
     public SortMergeJoin(Join jn) {
         super(jn.getLeft(), jn.getRight(), jn.getConditionList(), jn.getOpType());
@@ -33,6 +37,11 @@ public class SortMergeJoin extends Join{
     }
 
     private Tuple advanceLeft() {
+        if (leftReader != null) {
+            //Left hand side is materialized and can be read with leftReader
+            return leftReader.next();
+        }
+
         if (lcurs == 0) {
             leftBatch = sortedLeft.next();
         }
@@ -50,19 +59,7 @@ public class SortMergeJoin extends Join{
     }
 
     private Tuple advanceRight() {
-        if (rcurs == 0) {
-            rightBatch = sortedRight.next();
-        }
-        if (rightBatch == null) {
-            return null;
-        }
-        Tuple tuple = rightBatch.get(rcurs);
-        rcurs++;
-
-        if (rcurs >= rightBatch.size()) {
-            rcurs = 0;
-        }
-        return tuple;
+        return rightReader.next();
     }
 
     /**
@@ -84,21 +81,62 @@ public class SortMergeJoin extends Join{
             leftindex.add(left.getSchema().indexOf(leftattr));
             rightindex.add(right.getSchema().indexOf(rightattr));
         }
+        Batch page;
+        ExternalSort sortedRight = new ExternalSort("right", right, rightindex, false, numBuff);
+        rfname = "SMJtemp_right";
+        if (!sortedRight.open()) {
+            System.out.printf("Unable to open sorted right");
+            return false;
+        }
+
+        try {
+            ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(rfname));
+            while ((page = sortedRight.next()) != null) {
+                out.writeObject(page);
+            }
+            out.close();
+        } catch (IOException io) {
+            System.out.println("SortMergeJoin: Error writing to temporary file");
+            return false;
+        }
+        if (!sortedRight.close())
+            return false;
 
         sortedLeft = new ExternalSort("left", left, leftindex, false, numBuff);
-        sortedRight = new ExternalSort("right", right, rightindex, false, numBuff);
         if (!sortedLeft.open()) {
             System.out.printf("Unable to open sorted left");
             return false;
         }
-        if (!sortedRight.open()) {
-            System.out.printf("Unable to open right sorted right");
-            sortedLeft.close();
+
+        rightReader = new TupleReader(rfname, this.batchsize);
+        if (!rightReader.open()) {
+            System.out.println("SortMergeJoin: Unable to open right reader");
+            this.close();
             return false;
         }
-
+        if (numBuff == 3) {
+            //If there are only 3 buffers available, materialize the leftTable
+            lfname = "SMJtemp_left";
+            try {
+                ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(lfname));
+                while ((page = sortedLeft.next()) != null) {
+                    out.writeObject(page);
+                }
+                out.close();
+            } catch (IOException io) {
+                System.out.println("SortMergeJoin: Error writing to temporary file");
+                return false;
+            }
+            if (!sortedLeft.close())
+                return false;
+            leftReader = new TupleReader(rfname, this.batchsize);
+            if (!leftReader.open()) {
+                System.out.println("SortMergeJoin: Unable to open left reader");
+                this.close();
+                return false;
+            }
+        }
         lcurs = 0;
-        rcurs = 0;
 
         currLeft = advanceLeft();
         currRight = advanceRight();
@@ -170,8 +208,16 @@ public class SortMergeJoin extends Join{
      * Close the operator
      */
     public boolean close() {
-        sortedLeft.close();
-        sortedRight.close();
+        File f = new File(rfname);
+        f.delete();
+        f = new File(lfname);
+        f.delete();
+        if (leftReader != null) {
+            leftReader.close();
+        } else {
+            sortedLeft.close();
+        }
+        rightReader.close();
         return true;
     }
 

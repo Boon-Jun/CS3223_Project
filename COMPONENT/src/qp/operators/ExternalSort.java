@@ -17,8 +17,9 @@ public class ExternalSort extends Operator{
     private String id;
     private Operator base;
     private final ArrayList<Integer> compareIndex; //Index of columns to sort by
-    private ArrayList<String> tempFiles;
-    private TupleReader curr_reader;
+    private ArrayList<String> tempFiles; //Contains pages that are stored on the disk
+    ArrayList<TupleReader> curr_readers; //Input tuple readers(Each tuple reader is allocated 1 input buffer during merging)
+    PriorityQueue<TupleIndexPair> pq; //PQ is used to select tuples from the respective input buffers during merging phase
 
     public ExternalSort(String id, Operator base, ArrayList<Integer> compareIndex, boolean reverse, int numBuffer) {
         super(OpType.SORT);
@@ -30,6 +31,7 @@ public class ExternalSort extends Operator{
         this.batchSize = Batch.getPageSize()/tupleSize;
         this.tempFiles = new ArrayList<>();
         this.id = id;
+        curr_readers = new ArrayList<>();
     }
 
     private void deleteTempFiles() {
@@ -39,10 +41,10 @@ public class ExternalSort extends Operator{
         }
     }
 
-    private void writeTuplesArrayOutput(ArrayList<Tuple> tuples, String fileName) {
+    private void writeTuplesToOutput(ArrayList<Tuple> tuples, String fileName) {
         TupleWriter writer = new TupleWriter(fileName, this.batchSize);
         if (!writer.open()) {
-            System.out.printf("%s:writing SM file error\n", fileName);
+            System.out.printf("%s:writing ES file error\n", fileName);
             System.exit(1);
         }
         for (int x = 0; x < tuples.size(); x++) {
@@ -79,8 +81,8 @@ public class ExternalSort extends Operator{
             }
             if (!inMemoryTuples.isEmpty()) {
                 Collections.sort(inMemoryTuples, new TupleComparator(this.compareIndex, this.compareIndex, this.reverse));
-                String output_file = "SMtempRun-" + this.id + "_" + this.pass + "-" + runCount;
-                writeTuplesArrayOutput(inMemoryTuples, output_file);
+                String output_file = "EStempRun-" + this.id + "_" + this.pass + "-" + runCount;
+                writeTuplesToOutput(inMemoryTuples, output_file);
                 tempFiles.add(output_file);
                 runCount++;
             }
@@ -90,8 +92,7 @@ public class ExternalSort extends Operator{
         this.base.close();
     }
 
-    private void merge(ArrayList<TupleReader> readers, String output_file) {
-        TupleWriter writer = new TupleWriter(output_file, this.batchSize);
+    private void merge_pq_setup() {
         Comparator<TupleIndexPair> custom_comparator = new Comparator<TupleIndexPair>() {
             @Override
             public int compare(TupleIndexPair o1, TupleIndexPair o2) {
@@ -99,26 +100,29 @@ public class ExternalSort extends Operator{
                 return reverse ? -result: result;
             }
         };
+        pq = new PriorityQueue<>(numBuffer - 1, custom_comparator);
+        //Populate PQ with first tuple from each buffer
+        for (int x = 0; x < curr_readers.size(); x++) {
+            Tuple tuple = curr_readers.get(x).next();
+            assert(tuple != null);
+            pq.add(new TupleIndexPair(tuple, x));
+        }
+    }
 
-        PriorityQueue<TupleIndexPair> pq = new PriorityQueue<>(numBuffer - 1, custom_comparator);
+    private void merge(String output_file) {
+        TupleWriter writer = new TupleWriter(output_file, this.batchSize);
 
         if (!writer.open()) {
             System.out.printf("%s:writing merged file error\n", output_file);
             System.exit(1);
         }
 
-        //Populate PQ with first tuple from each buffer
-        for (int x = 0; x < readers.size(); x++) {
-            Tuple tuple = readers.get(x).next();
-            assert(tuple != null);
-            pq.add(new TupleIndexPair(tuple, x));
-        }
-
+        merge_pq_setup();
         //Merge and place each element into the output buffer
         while (!pq.isEmpty()) {
             TupleIndexPair tupleIndexPair = pq.poll();
             writer.next(tupleIndexPair.tuple);
-            Tuple nextTuple = readers.get(tupleIndexPair.index).next();
+            Tuple nextTuple = curr_readers.get(tupleIndexPair.index).next();
             if (nextTuple != null) {
                 pq.add(new TupleIndexPair(nextTuple, tupleIndexPair.index));
             }
@@ -126,27 +130,30 @@ public class ExternalSort extends Operator{
         writer.close();
     }
 
-    private void mergeRuns() {
+    //single pass over all pages
+    private void mergePass() {
         ArrayList<String> next_sorted_temp_runs = new ArrayList<>();
-        ArrayList<TupleReader> readers = new ArrayList<>();
         int run_count = 0;
         int x = 0;
 
         while (x < this.tempFiles.size()) {
             do {
+                //Add pages into buffer until input buffers are full
                 String tempFileName = this.tempFiles.get(x);
                 TupleReader reader = new TupleReader(tempFileName, this.batchSize);
                 if (!reader.open()) {
                     System.out.printf("%s: Unable to open file to during merging\n", tempFileName);
                     System.exit(1);
                 }
-                readers.add(reader);
+                curr_readers.add(reader);
                 x++;
-            } while (x < this.tempFiles.size() && x % (this.batchSize - 1) != 0);
-            String output_file = "SMtempRun-" + this.id + "-" + this.pass + "-" + run_count;
-            merge(readers, output_file);
+            } while (x < this.tempFiles.size() && (this.batchSize == 1 || x % (this.batchSize - 1) != 0));
+
+            String output_file = "EStempRun-" + this.id + "-" + this.pass + "-" + run_count;
+            merge(output_file);
             next_sorted_temp_runs.add(output_file);
             run_count++;
+            curr_readers.clear();
         }
         this.pass++;
         deleteTempFiles();
@@ -155,25 +162,36 @@ public class ExternalSort extends Operator{
 
     public boolean open() {
         generateSortedRuns();
-        while (tempFiles.size() != 1) {
-            mergeRuns();
+        while (tempFiles.size() > numBuffer - 1) {
+            mergePass();
         }
-        curr_reader = new TupleReader(tempFiles.get(0), this.batchSize);
-        if (!curr_reader.open()) {
-            System.out.printf("%s: Unable to open final sorted run\n", tempFiles.get(0));
-            return false;
+        //Load pages in disk into buffer
+        for (int x = 0; x < tempFiles.size(); x++) {
+            String tempFileName = this.tempFiles.get(x);
+            TupleReader reader = new TupleReader(tempFileName, this.batchSize);
+            if (!reader.open()) {
+                System.out.printf("%s: Unable to open file for final merge\n", tempFileName);
+                System.exit(1);
+            }
+            curr_readers.add(reader);
+            x++;
         }
+        merge_pq_setup();
         return true;
     }
 
     public Batch next() {
         Batch outBatch = new Batch(this.batchSize);
-        while (!outBatch.isFull()) {
-            Tuple tuple = this.curr_reader.next();
-            if (tuple == null) {
-                break;
+        while (!pq.isEmpty()) {
+            TupleIndexPair tupleIndexPair = pq.poll();
+            outBatch.add(tupleIndexPair.tuple);
+            Tuple nextTuple = curr_readers.get(tupleIndexPair.index).next();
+            if (nextTuple != null) {
+                pq.add(new TupleIndexPair(nextTuple, tupleIndexPair.index));
             }
-            outBatch.add(tuple);
+            if (outBatch.isFull()) {
+                return outBatch;
+            }
         }
         if (outBatch.isEmpty()) {
             outBatch = null;
@@ -182,10 +200,10 @@ public class ExternalSort extends Operator{
     }
 
     public boolean close() {
-        this.curr_reader.close();
-        File f = new File(this.tempFiles.get(0));
-        f.delete();
-        tempFiles.clear();
+        for (int x = 0; x < curr_readers.size(); x++) {
+            curr_readers.get(x).close();
+        }
+        deleteTempFiles();
         return true;
     }
 
