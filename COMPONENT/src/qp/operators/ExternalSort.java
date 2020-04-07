@@ -147,7 +147,7 @@ public class ExternalSort extends Operator{
                 }
                 curr_readers.add(reader);
                 x++;
-            } while (x < this.tempFiles.size() && x % (this.batchSize - 1) != 0);
+            } while (x < this.tempFiles.size() && (this.batchSize == 1 || x % (this.batchSize - 1) != 0));
 
             String output_file = "SMtempRun-" + this.id + "-" + this.pass + "-" + run_count;
             merge(output_file);
