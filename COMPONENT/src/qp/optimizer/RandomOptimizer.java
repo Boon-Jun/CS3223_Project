@@ -112,9 +112,111 @@ public class RandomOptimizer {
     }
 
     /**
+     * Implementation of Simulated Annealing Algorithm for Randomized optimization of Query Plan
+     **/
+    public Operator getSAPlan(Operator plan) {
+        /** get an initial plan for the given sql query **/
+        Operator initPlan;
+        long initCost;
+        double temperature;
+        PlanCost pc;
+
+        if (plan == null) {
+            RandomInitialPlan rip = new RandomInitialPlan(sqlquery);
+            initPlan = rip.prepareInitialPlan();
+        } else {
+            initPlan = plan;//Assumed to be minS of II.
+        }
+        pc = new PlanCost();
+        initCost = pc.getCost(initPlan);
+        int unchangedCount = 0;
+
+        if (plan == null) {
+            temperature = 2 * initCost;//Temperature for implementation of SA
+        } else {
+            temperature = 0.1 * initCost;//Temperature for implementation of 2PO
+        }
+        Operator finalPlan = initPlan;
+        long finalCost = initCost;
+
+        while (temperature > 1 && unchangedCount < 4) {//while not frozen
+            modifySchema(initPlan);
+            System.out.println("-----------initial Plan SA-------------");
+            Debug.PPrint(initPlan);
+            System.out.println(initCost);
+
+            long minNeighborCost = initCost;   //just initialization purpose;
+            Operator minNeighbor = initPlan;  //just initialization purpose;
+            for (int x = 0; x < 16 * numJoin; x++) {  //equilibrium is defined as 16 * number of Joins in query.
+                System.out.println("---------------while SA--------");
+                Operator initPlanCopy = (Operator) initPlan.clone();
+                minNeighbor = getNeighbor(initPlanCopy);
+
+                System.out.println("--------------------------neighbor SA---------------");
+                Debug.PPrint(minNeighbor);
+                pc = new PlanCost();
+                minNeighborCost = pc.getCost(minNeighbor);
+                System.out.println("  " + minNeighborCost);
+
+                /** In this loop we consider from the
+                 ** possible neighbors (randomly selected)
+                 ** and take the minimum among for next step
+                 **/
+                for (int i = 1; i < 2 * numJoin; ++i) {//random state in neighbour
+                    initPlanCopy = (Operator) initPlan.clone();
+                    Operator neighbor = getNeighbor(initPlanCopy);
+                    System.out.println("------------------neighbor SA--------------");
+                    Debug.PPrint(neighbor);
+                    pc = new PlanCost();
+                    long neighborCost = 0;
+                    try {
+                        neighborCost = pc.getCost(neighbor);
+                    } catch (Exception e) {
+                        System.out.println("fatal error.");
+                        System.exit(0);
+                    }
+                    System.out.println(neighborCost);
+
+                    if (neighborCost <= minNeighborCost) {
+                        minNeighbor = neighbor;
+                        minNeighborCost = neighborCost;
+                    }
+                }
+                if (minNeighborCost <= initCost) {
+                    initPlan = minNeighbor;
+                    initCost = minNeighborCost;
+                } else if (Math.random() < Math.exp((initCost - minNeighborCost)/temperature)) {
+                    //minNeighborCost > initCost &&
+                    initPlan = minNeighbor;
+                    initCost = minNeighborCost;
+                } else {
+                    minNeighbor = initPlan;
+                    minNeighborCost = initCost;
+                }
+            }
+            System.out.println("------------------neighbour at equilibrium SA--------------");
+            Debug.PPrint(minNeighbor);
+            System.out.println(" " + minNeighborCost);
+            if (minNeighborCost < finalCost) {
+                finalCost = minNeighborCost;
+                finalPlan = minNeighbor;
+                unchangedCount = 0;
+            } else {
+                unchangedCount++;
+            }
+            temperature = 0.95 * temperature;
+        }
+        System.out.println("\n\n\n");
+        System.out.println("---------------------------Final Plan SA----------------");
+        Debug.PPrint(finalPlan);
+        System.out.println("  " + finalCost);
+        return finalPlan;
+    }
+
+    /**
      * Implementation of Iterative Improvement Algorithm for Randomized optimization of Query Plan
      **/
-    public Operator getOptimizedPlan() {
+    public Operator getIIPlan(boolean is_2PO) {
         /** get an initial plan for the given sql query **/
         RandomInitialPlan rip = new RandomInitialPlan(sqlquery);
         numJoin = rip.getNumJoins();
@@ -123,7 +225,9 @@ public class RandomOptimizer {
 
         /** NUMITER is number of times random restart **/
         int NUMITER;
-        if (numJoin != 0) {
+        if (is_2PO) {
+             NUMITER = 10; //10 local optimizations as defined in paper for II phase of 2PO
+        } else if (numJoin != 0) {
             NUMITER = 2 * numJoin;
         } else {
             NUMITER = 1;
@@ -136,7 +240,7 @@ public class RandomOptimizer {
         for (int j = 0; j < NUMITER; ++j) {
             Operator initPlan = rip.prepareInitialPlan();
             modifySchema(initPlan);
-            System.out.println("-----------initial Plan-------------");
+            System.out.println("-----------initial II Plan-------------");
             Debug.PPrint(initPlan);
             PlanCost pc = new PlanCost();
             long initCost = pc.getCost(initPlan);
@@ -147,11 +251,11 @@ public class RandomOptimizer {
             Operator minNeighbor = initPlan;  //just initialization purpose;
             if (numJoin != 0) {
                 while (flag) {  // flag = false when local minimum is reached
-                    System.out.println("---------------while--------");
+                    System.out.println("---------------while II--------");
                     Operator initPlanCopy = (Operator) initPlan.clone();
                     minNeighbor = getNeighbor(initPlanCopy);
 
-                    System.out.println("--------------------------neighbor---------------");
+                    System.out.println("--------------------------neighbor II---------------");
                     Debug.PPrint(minNeighbor);
                     pc = new PlanCost();
                     minNeighborCost = pc.getCost(minNeighbor);
@@ -164,7 +268,7 @@ public class RandomOptimizer {
                     for (int i = 1; i < 2 * numJoin; ++i) {
                         initPlanCopy = (Operator) initPlan.clone();
                         Operator neighbor = getNeighbor(initPlanCopy);
-                        System.out.println("------------------neighbor--------------");
+                        System.out.println("------------------neighbor II--------------");
                         Debug.PPrint(neighbor);
                         pc = new PlanCost();
                         long neighborCost = 0;
@@ -190,7 +294,7 @@ public class RandomOptimizer {
                         flag = false;  // local minimum reached
                     }
                 }
-                System.out.println("------------------local minimum--------------");
+                System.out.println("------------------local minimum II--------------");
                 Debug.PPrint(minNeighbor);
                 System.out.println(" " + minNeighborCost);
             }
@@ -200,10 +304,15 @@ public class RandomOptimizer {
             }
         }
         System.out.println("\n\n\n");
-        System.out.println("---------------------------Final Plan----------------");
+        System.out.println("---------------------------Final Plan II----------------");
         Debug.PPrint(finalPlan);
         System.out.println("  " + MINCOST);
         return finalPlan;
+    }
+
+    public Operator get2POPlan() {
+        Operator IIplan = getIIPlan(true);
+        return getSAPlan(IIplan);
     }
 
     /**
