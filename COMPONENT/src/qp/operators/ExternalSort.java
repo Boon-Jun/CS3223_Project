@@ -27,6 +27,7 @@ public class ExternalSort extends Operator{
         this.reverse = reverse;
         int tupleSize = base.getSchema().getTupleSize();
         this.batchSize = Batch.getPageSize()/tupleSize;
+        this.tempFiles = new ArrayList<>();
     }
 
     private void deleteTempFiles() {

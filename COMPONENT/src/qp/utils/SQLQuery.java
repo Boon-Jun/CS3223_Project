@@ -43,17 +43,10 @@ public class SQLQuery {
         conditionList = new ArrayList<>();
         joinList = new ArrayList<>();
         groupbyList = new ArrayList<>();
+        orderbyList = new ArrayList<>();
         selectionList = new ArrayList<>();
     }
 
-    //Constructor to handle ORDERBY clause
-    public SQLQuery(ArrayList<Attribute> list1, ArrayList<String> list2, ArrayList<Condition> list3, ArrayList<Attribute> list4) {
-        projectList = list1;
-        fromList = list2;
-        conditionList = list3;
-        orderbyList = list4;
-        splitConditionList(conditionList);
-    }
 
     /**
      * Split the condition list into selection and join list
