@@ -296,7 +296,7 @@ public class RandomOptimizer {
                 }
                 System.out.println("------------------local minimum II--------------");
                 Debug.PPrint(minNeighbor);
-                System.out.println(" " + minNeighborCost);
+                System.out.println(" " + minNeighborCost + "\n");
             }
             if (minNeighborCost < MINCOST) {
                 MINCOST = minNeighborCost;
