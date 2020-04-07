@@ -169,9 +169,12 @@ public class ExternalSort extends Operator{
         while (!outBatch.isFull()) {
             Tuple tuple = this.curr_reader.next();
             if (tuple == null) {
-                return outBatch;
+                break;
             }
             outBatch.add(tuple);
+        }
+        if (outBatch.isEmpty()) {
+            outBatch = null;
         }
         return outBatch;
     }
