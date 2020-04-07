@@ -5,3 +5,5 @@
 *.out
 COMPONENT/*.idea
 COMPONENT/classes
+out/production/
+COMPONENT/COMPONENT.iml

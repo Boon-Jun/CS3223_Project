@@ -7,7 +7,7 @@ import qp.operators.Operator;
 import qp.optimizer.BufferManager;
 import qp.optimizer.PlanCost;
 import qp.optimizer.RandomOptimizer;
-import qp.parser.Scaner;
+import qp.parser.Scanner;
 import qp.parser.parser;
 import qp.utils.*;
 
@@ -28,7 +28,7 @@ public class QueryMain {
         Batch.setPageSize(getPageSize(args, in));
 
         SQLQuery sqlquery = getSQLQuery(args[0]);
-        configureBufferManager(sqlquery.getNumJoin(), sqlquery.isDistinct(), args, in);
+        configureBufferManager(sqlquery.getNumJoin(), sqlquery, args, in);
 
         Operator root = getQueryPlan(sqlquery);
         printFinalPlan(root, args, in);
@@ -67,7 +67,7 @@ public class QueryMain {
         }
 
         /** Scan the query **/
-        Scaner sc = new Scaner(source);
+        Scanner sc = new Scanner(source);
         parser p = new parser();
         p.setScanner(sc);
 
@@ -86,8 +86,10 @@ public class QueryMain {
      * If there are joins then assigns buffers to each join operator while preparing the plan.
      * As buffer manager is not implemented, just input the number of buffers available.
      **/
-    private static void configureBufferManager(int numJoin, boolean isDistinct, String[] args, BufferedReader in) {
-        if (numJoin != 0 || isDistinct) {
+
+    private static void configureBufferManager(int numJoin, SQLQuery query, String[] args, BufferedReader in) {
+        boolean needsBuffer = numJoin != 0 || query.isDistinct() || query.getOrderByList().size() != 0;
+        if (needsBuffer) {
             int numBuff = 1000;
             if (args.length < 4) {
                 System.out.println("enter the number of buffers available");
@@ -102,8 +104,8 @@ public class QueryMain {
         }
 
         /** Check the number of buffers available is enough or not **/
-        int numBuff = BufferManager.getBuffersPerJoin();
-        if (numJoin > 0 && numBuff < 3) {
+        int numBuffPerJoin = BufferManager.getBuffersPerJoin();
+        if (numJoin > 0 && numBuffPerJoin < 3) {
             System.out.println("Minimum 3 buffers are required per join operator ");
             System.exit(1);
         }
