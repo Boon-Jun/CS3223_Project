@@ -88,10 +88,8 @@ public class OrderBy extends Operator {
         }
         while (!outbatch.isFull()) {
             if (curs < inbatch.size()) {
-                if (previousTuple == null || Tuple.compareTuples(previousTuple, inbatch.get(curs), compareIndex) != 0) {
-                    outbatch.add(inbatch.get(curs));
-                    previousTuple = inbatch.get(curs);
-                }
+                outbatch.add(inbatch.get(curs));
+                previousTuple = inbatch.get(curs);
                 curs++;
             } else {
                 inbatch = sorted.next();
