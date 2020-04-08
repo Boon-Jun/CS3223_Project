@@ -75,7 +75,6 @@ public class ExternalSort extends Operator{
                 }
                 for (int x = nextBatch.size() - 1; x >= 0; x--) {
                     inMemoryTuples.add(nextBatch.get(x));
-                    nextBatch.remove(x);//Simulate the situation where we are operating with limited buffers
                 }
                 batchCount++;
             }
@@ -147,7 +146,7 @@ public class ExternalSort extends Operator{
                 }
                 curr_readers.add(reader);
                 x++;
-            } while (x < this.tempFiles.size() && (this.batchSize == 1 || x % (this.batchSize - 1) != 0));
+            } while (x < this.tempFiles.size() && x % (numBuffer - 1) != 0);
 
             String output_file = "EStempRun-" + this.id + "-" + this.pass + "-" + run_count;
             merge(output_file);
