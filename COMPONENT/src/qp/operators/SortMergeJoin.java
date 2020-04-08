@@ -109,7 +109,8 @@ public class SortMergeJoin extends Join{
             return false;
         }
 
-        rightReader = new TupleReader(rfname, this.batchsize);
+        int rightBatchSize = Batch.getPageSize()/right.getSchema().getTupleSize();
+        rightReader = new TupleReader(rfname, rightBatchSize);
         if (!rightReader.open()) {
             System.out.println("SortMergeJoin: Unable to open right reader");
             this.close();
@@ -130,7 +131,9 @@ public class SortMergeJoin extends Join{
             }
             if (!sortedLeft.close())
                 return false;
-            leftReader = new TupleReader(lfname, this.batchsize);
+
+            int leftBatchSize = Batch.getPageSize()/left.getSchema().getTupleSize();
+            leftReader = new TupleReader(lfname, leftBatchSize);
             if (!leftReader.open()) {
                 System.out.println("SortMergeJoin: Unable to open left reader");
                 this.close();
