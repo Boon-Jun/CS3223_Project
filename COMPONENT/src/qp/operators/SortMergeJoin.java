@@ -9,6 +9,7 @@ import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 
 public class SortMergeJoin extends Join{
+    static int filenum = 0;         // To get unique filenum for this operation
     int batchsize;                  // Number of tuples per out batch
     ArrayList<Integer> leftindex;   // Indices of the join attributes in left table
     ArrayList<Integer> rightindex;  // Indices of the join attributes in right table
@@ -82,8 +83,10 @@ public class SortMergeJoin extends Join{
             rightindex.add(right.getSchema().indexOf(rightattr));
         }
         Batch page;
-        ExternalSort sortedRight = new ExternalSort("right", right, rightindex, false, numBuff);
-        rfname = "SMJtemp_right";
+
+        filenum++;
+        ExternalSort sortedRight = new ExternalSort("right" + String.valueOf(filenum), right, rightindex, false, numBuff);
+        rfname = "SMJtemp_right" + String.valueOf(filenum);
         if (!sortedRight.open()) {
             System.out.printf("Unable to open sorted right");
             return false;
@@ -103,7 +106,7 @@ public class SortMergeJoin extends Join{
         if (!sortedRight.close())
             return false;
 
-        sortedLeft = new ExternalSort("left", left, leftindex, false, numBuff);
+        sortedLeft = new ExternalSort("left" + String.valueOf(filenum), left, leftindex, false, numBuff);
         if (!sortedLeft.open()) {
             System.out.printf("Unable to open sorted left");
             return false;
@@ -118,7 +121,7 @@ public class SortMergeJoin extends Join{
         }
         if (numBuff == 3) {
             //If there are only 3 buffers available, materialize the left hand side
-            lfname = "SMJtemp_left";
+            lfname = "SMJtemp_left" + String.valueOf(filenum);
             try {
                 ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(lfname));
                 while ((page = sortedLeft.next()) != null) {
