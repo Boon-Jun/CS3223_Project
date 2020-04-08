@@ -89,6 +89,7 @@ public class SortMergeJoin extends Join{
             return false;
         }
 
+        //Materializing the right hand side
         try {
             ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(rfname));
             while ((page = sortedRight.next()) != null) {
@@ -115,7 +116,7 @@ public class SortMergeJoin extends Join{
             return false;
         }
         if (numBuff == 3) {
-            //If there are only 3 buffers available, materialize the leftTable
+            //If there are only 3 buffers available, materialize the left hand side
             lfname = "SMJtemp_left";
             try {
                 ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(lfname));

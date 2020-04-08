@@ -191,7 +191,6 @@ public class RandomOptimizer {
                     initPlan = minNeighbor;
                     initCost = minNeighborCost;
                 } else if (Math.random() < Math.exp((initCost - minNeighborCost)/temperature)) {
-                    //minNeighborCost > initCost &&
                     initPlan = minNeighbor;
                     initCost = minNeighborCost;
                 } else {
