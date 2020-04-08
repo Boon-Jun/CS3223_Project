@@ -209,15 +209,15 @@ public class SortMergeJoin extends Join{
      * Close the operator
      */
     public boolean close() {
-        File f = new File(rfname);
-        f.delete();
-        f = new File(lfname);
-        f.delete();
         if (leftReader != null) {
             leftReader.close();
+            File f = new File(lfname);
+            f.delete();
         } else {
             sortedLeft.close();
         }
+        File f = new File(rfname);
+        f.delete();
         rightReader.close();
         return true;
     }
