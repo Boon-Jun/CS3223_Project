@@ -130,7 +130,7 @@ public class SortMergeJoin extends Join{
             }
             if (!sortedLeft.close())
                 return false;
-            leftReader = new TupleReader(rfname, this.batchsize);
+            leftReader = new TupleReader(lfname, this.batchsize);
             if (!leftReader.open()) {
                 System.out.println("SortMergeJoin: Unable to open left reader");
                 this.close();
