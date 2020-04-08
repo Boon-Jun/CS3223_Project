@@ -2,8 +2,7 @@
  * This is main driver program of the query processor
  **/
 
-import qp.operators.Debug;
-import qp.operators.Operator;
+import qp.operators.*;
 import qp.optimizer.BufferManager;
 import qp.optimizer.PlanCost;
 import qp.optimizer.RandomOptimizer;
@@ -31,8 +30,46 @@ public class QueryMain {
         configureBufferManager(sqlquery.getNumJoin(), sqlquery, args, in);
 
         Operator root = getQueryPlan(sqlquery);
+        checkPlanFeasibility(root);
         printFinalPlan(root, args, in);
         executeQuery(root, args[1]);
+    }
+
+    private static void checkPlanFeasibility(Operator operator) {
+        int opType = operator.getOpType();
+        checkOperatorFeasibility(operator);
+
+        /** Check whether at least a result tuple can be stored in a batch **/
+        switch (opType) {
+            case OpType.JOIN:
+                checkPlanFeasibility(((Join) operator).getLeft());
+                checkPlanFeasibility(((Join) operator).getRight());
+                break;
+            case OpType.SELECT:
+                checkPlanFeasibility(((Select) operator).getBase());
+                break;
+            case OpType.PROJECT:
+                checkPlanFeasibility(((Project) operator).getBase());
+                break;
+            case OpType.DISTINCT:
+                checkPlanFeasibility(((Distinct) operator).getBase());
+                break;
+            case OpType.SORT:
+                checkPlanFeasibility(((OrderBy) operator).getBase());
+                break;
+            default:
+                break;
+        }
+
+    }
+
+    private static void checkOperatorFeasibility(Operator operator) {
+        int pagesize = Batch.getPageSize();
+        if (operator.getSchema().getTupleSize() > pagesize) {
+            // Joins can't run when a single result tuple cannot even fit in a single page
+            System.out.println("Error: A single Page must at least be able to store 1 tuple of the original schema/subschema");
+            System.exit(1);
+        }
     }
 
     /**
