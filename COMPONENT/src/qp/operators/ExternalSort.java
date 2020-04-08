@@ -173,7 +173,6 @@ public class ExternalSort extends Operator{
                 System.exit(1);
             }
             curr_readers.add(reader);
-            x++;
         }
         merge_pq_setup();
         return true;
