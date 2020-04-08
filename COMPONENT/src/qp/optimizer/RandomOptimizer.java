@@ -230,7 +230,7 @@ public class RandomOptimizer {
 
         /** NUMITER is number of times random restart **/
         int NUMITER;
-        if (is_2PO) {
+        if (is_2PO && numJoin != 0) {
              NUMITER = 10; //10 local optimizations as defined in paper for II phase of 2PO
         } else if (numJoin != 0) {
             NUMITER = 2 * numJoin;
