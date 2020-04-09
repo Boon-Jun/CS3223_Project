@@ -20,14 +20,13 @@ public class BlockNestedJoin extends Join {
     ArrayList<Integer> rightindex;  // Indices of the join attributes in right table
     String rfname;                  // The file name where the right table is materialized
     Batch outbatch;                 // Buffer page for output
-    ArrayList<Batch> leftbatches;   // Buffer pages for left input stream (since it is Block Nested Join)
+    ArrayList<Tuple> leftbatches;   // Buffer pages for left input stream (since it is Block Nested Join)
     Batch rightbatch;               // Buffer page for right input stream
     ObjectInputStream in;           // File pointer to the right hand materialized file
 
     int blocksize;                  // Number of pages in a blocks
 
     int lcurs;                      // Cursor for left side buffer
-    int lbcurs;                      // Cursor for Left side buffer array list
     int rcurs;                      // Cursor for right side buffer
     boolean eosl;                   // Whether end of stream (left table) is reached
     boolean eosr;                   // Whether end of stream (right table) is reached
@@ -51,7 +50,7 @@ public class BlockNestedJoin extends Join {
         batchsize = Batch.getPageSize() / tuplesize;
 
         /** block size for left batches in **/
-        blocksize = numBuff - 2;
+        blocksize = numBuff - 2; // Exclude input buffer for right relation and output buffer
 
         /** ArrayList for blocksize leftnatches **/
         leftbatches = new ArrayList<>();
@@ -69,7 +68,6 @@ public class BlockNestedJoin extends Join {
 
         /** initialize the cursors of input buffers **/
         lcurs = 0;
-        lbcurs = 0;
         rcurs = 0;
         eosl = false;
         /** because right stream is to be repetitively scanned
@@ -113,27 +111,23 @@ public class BlockNestedJoin extends Join {
      * * And returns a page of output tuples
      **/
     public Batch next() {
-        if (eosl && lbcurs == 0 && lcurs == 0) {
+        if (eosl && lcurs == 0) {
             return null;
         }
         outbatch = new Batch(batchsize);
         while (!outbatch.isFull()) {
-            if (lbcurs == 0 && lcurs == 0 && eosr == true) {
-                // End join if all leftBatches are consumed
-                if (eosl) {
-                    return outbatch;
-                }
+            if (lcurs == 0 && eosr == true) {
                 /** new block is to be fetched**/
                 leftbatches = new ArrayList<>();
-                for (int i = 0; i < blocksize; i++) {   // Exclude input buffer for right relation and output buffer
+                for (int i = 0; i < blocksize; i++) {
                     Batch tempLeftBatch = left.next();
                     if (tempLeftBatch == null && i == 0) {
                         eosl = true;
                         return outbatch;
-                    } else if(tempLeftBatch == null){
+                    } else if (tempLeftBatch == null) {
                         eosl = true;
                     } else {
-                        leftbatches.add(tempLeftBatch);
+                        leftbatches.addAll(tempLeftBatch.getAll());
                     }
                 }
 
@@ -150,65 +144,41 @@ public class BlockNestedJoin extends Join {
             }
             while (eosr == false) {
                 try {
-                    if (rcurs == 0 && lbcurs == 0 && lcurs == 0) {
+                    // Read in new right batch if the left block is done with the current right block
+                    if (rcurs == 0 && lcurs == 0) {
                         rightbatch = (Batch) in.readObject();
                     }
-                    for (int k = lbcurs; k < leftbatches.size(); ++k) {
-                        Batch leftbatch = leftbatches.get(k);
-                        for (int i = lcurs; i < leftbatch.size(); ++i) {
-                            for (int j = rcurs; j < rightbatch.size(); ++j) {
-                                Tuple lefttuple = leftbatch.get(i);
-                                Tuple righttuple = rightbatch.get(j);
-                                if (lefttuple.checkJoin(righttuple, leftindex, rightindex)) {
-                                    Tuple outtuple = lefttuple.joinWith(righttuple);
-                                    outbatch.add(outtuple);
-                                    if (outbatch.isFull()) {
-                                        boolean leftBatchesCursorFinished = (k == (leftbatches.size() - 1));
-                                        boolean leftBatchCursorFinished = (i == (leftbatch.size() - 1));
-                                        boolean rightBatchCursorFinished = (j == (rightbatch.size() - 1));
+                    for (int i = rcurs; i < rightbatch.size(); ++i) {
+                        for (int j = lcurs; j < leftbatches.size(); ++j) {
+                            Tuple righttuple = rightbatch.get(i);
+                            Tuple lefttuple = leftbatches.get(j);
+                            if (lefttuple.checkJoin(righttuple, leftindex, rightindex)) {
+                                Tuple outtuple = lefttuple.joinWith(righttuple);
+                                outbatch.add(outtuple);
+                                if (outbatch.isFull()) {
+                                    boolean rightBatchCursorFinished = (i == (rightbatch.size() - 1));
+                                    boolean leftBatchCursorFinished = (j == (leftbatches.size() - 1));
 
-                                        if (leftBatchesCursorFinished && leftBatchCursorFinished && rightBatchCursorFinished) {
-                                            lbcurs = 0;
-                                            lcurs = 0;
-                                            rcurs = 0;
-                                        } else if (leftBatchesCursorFinished && !leftBatchCursorFinished && rightBatchCursorFinished) {
-                                            lbcurs = k;
-                                            lcurs = i + 1;
-                                            rcurs = 0;
-                                        } else if (leftBatchesCursorFinished && leftBatchCursorFinished && !rightBatchCursorFinished) {
-                                            lbcurs = k;
-                                            lcurs = i;
-                                            rcurs = j + 1;
-                                        } else if (leftBatchesCursorFinished && !leftBatchCursorFinished && !rightBatchCursorFinished) {
-                                            lbcurs = k;
-                                            lcurs = i;
-                                            rcurs = j + 1;
-                                        } else if (!leftBatchesCursorFinished && leftBatchCursorFinished && rightBatchCursorFinished) {
-                                            lbcurs = k + 1;
-                                            lcurs = 0;
-                                            rcurs = 0;
-                                        } else if (!leftBatchesCursorFinished && !leftBatchCursorFinished && rightBatchCursorFinished) {
-                                            lbcurs = k;
-                                            lcurs = i + 1;
-                                            rcurs = 0;
-                                        } else if (!leftBatchesCursorFinished && leftBatchCursorFinished && !rightBatchCursorFinished) {
-                                            lbcurs = k;
-                                            lcurs = i;
-                                            rcurs = j + 1;
-                                        } else if (!leftBatchesCursorFinished && !leftBatchCursorFinished && !rightBatchCursorFinished) {
-                                            lbcurs = k;
-                                            lcurs = i;
-                                            rcurs = j + 1;
-                                        }
-                                        return outbatch;
+                                    if (rightBatchCursorFinished && leftBatchCursorFinished) {
+                                        rcurs = 0;
+                                        lcurs = 0;
+                                    } else if (rightBatchCursorFinished && !leftBatchCursorFinished) {
+                                        rcurs = i;
+                                        lcurs = j + 1;
+                                    } else if (!rightBatchCursorFinished && leftBatchCursorFinished) {
+                                        rcurs = i + 1;
+                                        lcurs = 0;
+                                    } else {
+                                        rcurs = i;
+                                        lcurs = j + 1;
                                     }
+                                    return outbatch;
                                 }
                             }
-                            rcurs = 0;
                         }
                         lcurs = 0;
                     }
-                    lbcurs = 0;
+                    rcurs = 0;
                 } catch (EOFException e) {
                     try {
                         in.close();

@@ -84,6 +84,7 @@ public class Distinct extends Operator {
             } else {
                 inbatch = sorted.next();
                 curs = 0;
+                // When ExternalSort has no more tuples to give
                 if (inbatch == null) {
                     break;
                 }
