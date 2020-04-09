@@ -9,6 +9,7 @@ import java.util.Comparator;
 import java.util.PriorityQueue;
 
 public class ExternalSort extends Operator{
+    public static int ESnum = 0; // To ensure that all files written out by ESnum is unique
     private boolean reverse;
     private int numBuffer; //number of buffers available
     private int batchSize; //number of tuples that can be stored in the batch
@@ -30,7 +31,8 @@ public class ExternalSort extends Operator{
         int tupleSize = base.getSchema().getTupleSize();
         this.batchSize = Batch.getPageSize()/tupleSize;
         this.tempFiles = new ArrayList<>();
-        this.id = id;
+        this.id = id + String.valueOf(ESnum);
+        ESnum += 1;
         curr_readers = new ArrayList<>();
     }
 
