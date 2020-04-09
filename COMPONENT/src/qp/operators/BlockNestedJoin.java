@@ -51,7 +51,7 @@ public class BlockNestedJoin extends Join {
         batchsize = Batch.getPageSize() / tuplesize;
 
         /** block size for left batches in **/
-        blocksize = numBuff - 2;
+        blocksize = numBuff - 2; // Exclude input buffer for right relation and output buffer
 
         /** ArrayList for blocksize leftnatches **/
         leftbatches = new ArrayList<>();
@@ -125,7 +125,7 @@ public class BlockNestedJoin extends Join {
                 }
                 /** new block is to be fetched**/
                 leftbatches = new ArrayList<>();
-                for (int i = 0; i < blocksize; i++) {   // Exclude input buffer for right relation and output buffer
+                for (int i = 0; i < blocksize; i++) {
                     Batch tempLeftBatch = left.next();
                     if (tempLeftBatch == null && i == 0) {
                         eosl = true;
@@ -150,6 +150,7 @@ public class BlockNestedJoin extends Join {
             }
             while (eosr == false) {
                 try {
+                    // Read in new right batch if the left block is done with the current right block
                     if (rcurs == 0 && lbcurs == 0 && lcurs == 0) {
                         rightbatch = (Batch) in.readObject();
                     }
