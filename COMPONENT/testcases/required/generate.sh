@@ -1,9 +1,11 @@
-java RandomDB BILL 100
-java RandomDB CART 100
-java RandomDB CARTDETAILS 100
-java RandomDB CUSTOMER 100
+java RandomDB AIRCRAFT 10000
+java RandomDB CERTIFIED 10000
+java RandomDB EMPLOYEES 10000
+java RandomDB FLIGHTS 10000
+java RandomDB SCHEDULE 10000
 
-java ConvertTxtToTbl BILL
-java ConvertTxtToTbl CART
-java ConvertTxtToTbl CARTDETAILS
-java ConvertTxtToTbl CUSTOMER
+java ConvertTxtToTbl AIRCRAFT
+java ConvertTxtToTbl CERTIFIED
+java ConvertTxtToTbl EMPLOYEES
+java ConvertTxtToTbl FLIGHTS
+java ConvertTxtToTbl SCHEDULE
