@@ -176,7 +176,7 @@ public class PlanCost {
                 break;
             case JoinType.BLOCKNESTED:
                 long blocksize = numbuff-2;
-                joincost = (long) Math.ceil(((double) leftpages) / blocksize) * rightpages;
+                joincost = leftpages + (long) Math.ceil(((double) leftpages) / blocksize) * rightpages;
                 break;
             case JoinType.SORTMERGE:
                 joincost = calculateExternalSortCost(leftpages, numbuff) + calculateExternalSortCost(rightpages, numbuff) + leftpages + rightpages;
