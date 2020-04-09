@@ -1,8 +1,8 @@
 java RandomDB AIRCRAFT 11000
 java RandomDB CERTIFIED 22000
 java RandomDB EMPLOYEES 33000
-java RandomDB FLIGHTS 44000
-java RandomDB SCHEDULE 55000
+java RandomDB FLIGHTS 22000
+java RandomDB SCHEDULE 33000
 
 java ConvertTxtToTbl AIRCRAFT
 java ConvertTxtToTbl CERTIFIED
